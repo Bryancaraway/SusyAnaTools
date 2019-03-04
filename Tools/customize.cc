@@ -31,7 +31,7 @@ namespace AnaFunctions
       if( inputCSVS[ij] > cutCSVS ) 
       {
         cntNJets ++;
-        outputIdxs->push_back(ij);
+        if(outputIdxs) outputIdxs->push_back(ij);
       }
     }
     return cntNJets;

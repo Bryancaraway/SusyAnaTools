@@ -23,8 +23,10 @@ const int nPtBins = sizeof(ptBins)/sizeof(ptBins[0]) - 1;
 const float etaBins[] = {0.0,0.8,1.6,2.4};
 const int nEtaBins = sizeof(etaBins)/sizeof(etaBins[0]) - 1;
 
-const float csv_btag = AnaConsts::cutCSVS;
-
+const float deepCSV_2016_med = 0.6321;
+const float deepCSV_2017_med = 0.8838;
+const float deepCSV_2018_med = 0.4184;
+const float csv_btag = deepCSV_2016_med;
 const std::string spec = "bTagEff";
 
 // === Main Function ===================================================
@@ -85,8 +87,8 @@ int main(int argc, char* argv[])
  
 
     //AnaSamples::SampleSet        ss("sampleSets.txt", (argc == 6), AnaSamples::luminosity_2016);
-    AnaSamples::SampleSet        ss("sampleSets_PostProcessed_2016.cfg");
-    AnaSamples::SampleCollection sc("sampleCollections_2016.cfg", ss);
+    AnaSamples::SampleSet        ss("sampleSets_preProcess_2016.cfg");
+    //AnaSamples::SampleCollection sc("sampleCollections_2016.cfg", ss);
 
     float ScaleMC = 1.;                                                                              
     if(ss[subSampleName] != ss.null())                                                                             
@@ -125,17 +127,17 @@ int main(int argc, char* argv[])
         if(tr->checkBranch("MET_pt"))
         {
             JetsVec = "Jet";
-            BJetsVec = "Jet_btagStop0l";//"Stop0l_nbtags";
+            BJetsVec = "Jet_btagDeepB";
             JetsFlavor = "Jet_hadronFlavour";
         }
         else if(tr->checkBranch("MET"))
         {
             JetsVec = "Jets";
-            BJetsVec = "Jets_bDiscriminatorCSV";
+            BJetsVec = "Jet_btagDeepB";
             JetsFlavor = "Jets_partonFlavor";
         }
         const auto& inputJets = tr->getVec_LVFromNano<float>(JetsVec);
-        const auto& recoJetsBtag = tr->getVec<UChar_t>(BJetsVec);
+        const auto& recoJetsBtag = tr->getVec<float>(BJetsVec);
         const auto& recoJetsFlavor = tr->getVec<int>(JetsFlavor);          
          
         float iniWeight = tr->getVar<float>("genWeight");

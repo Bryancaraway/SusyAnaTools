@@ -84,8 +84,10 @@ int main(int argc, char* argv[])
     n_eff_udsg->GetYaxis()->SetTitle("#eta");
  
 
-    AnaSamples::SampleSet        ss("sampleSets.txt", (argc == 6), AnaSamples::luminosity_2016);
-                                   
+    //AnaSamples::SampleSet        ss("sampleSets.txt", (argc == 6), AnaSamples::luminosity_2016);
+    AnaSamples::SampleSet        ss("sampleSets_PostProcessed_2016.cfg");
+    AnaSamples::SampleCollection sc("sampleCollections_2016.cfg", ss);
+
     float ScaleMC = 1.;                                                                              
     if(ss[subSampleName] != ss.null())                                                                             
     {                                                                                                               
@@ -120,11 +122,11 @@ int main(int argc, char* argv[])
         }
 
         std::string JetsVec, BJetsVec, JetsFlavor;          
-        if(tr->checkBranch("met"))
+        if(tr->checkBranch("MET_pt"))
         {
-            JetsVec = "jetsLVec";
-            BJetsVec = "recoJetsCSVv2";
-            JetsFlavor = "recoJetsFlavor";
+            JetsVec = "Jet";
+            BJetsVec = "Jet_btagStop0l";//"Stop0l_nbtags";
+            JetsFlavor = "Jet_hadronFlavour";
         }
         else if(tr->checkBranch("MET"))
         {
@@ -132,13 +134,13 @@ int main(int argc, char* argv[])
             BJetsVec = "Jets_bDiscriminatorCSV";
             JetsFlavor = "Jets_partonFlavor";
         }
-        const auto& inputJets = tr->getVec<TLorentzVector>(JetsVec);
-        const auto& recoJetsBtag = tr->getVec<float>(BJetsVec);
+        const auto& inputJets = tr->getVec_LVFromNano<float>(JetsVec);
+        const auto& recoJetsBtag = tr->getVec<UChar_t>(BJetsVec);
         const auto& recoJetsFlavor = tr->getVec<int>(JetsFlavor);          
          
-        float iniWeight = tr->getVar<float>("evtWeight");
+        float iniWeight = tr->getVar<float>("genWeight");
 
-        float stored_weight = subSampleNameT.Contains("Data") ? 1 : tr->getVar<float>("stored_weight");
+        float stored_weight = subSampleNameT.Contains("Data") ? 1 : tr->getVar<float>("genWeight");
         int sign_of_stored_weight = (stored_weight > 0) ? 1 : ((stored_weight < 0) ? -1 : 0);
 
         float evtWeight = iniWeight >=0 ? iniWeight * sign_of_stored_weight : iniWeight;

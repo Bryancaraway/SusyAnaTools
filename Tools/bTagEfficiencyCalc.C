@@ -4,7 +4,6 @@
 #include "SusyAnaTools/Tools/SATException.h"
 #include "SusyAnaTools/Tools/NTupleReader.h"
 #include "SusyAnaTools/Tools/samples.h"
-#include "SusyAnaTools/Tools/customize.h"
 
 //ROOT headers
 #include "TFile.h"
@@ -26,7 +25,6 @@ const int nEtaBins = sizeof(etaBins)/sizeof(etaBins[0]) - 1;
 const float deepCSV_2016_med = 0.6321;
 const float deepCSV_2017_med = 0.8838;
 const float deepCSV_2018_med = 0.4184;
-const float csv_btag = deepCSV_2016_med;
 const std::string spec = "bTagEff";
 
 // === Main Function ===================================================
@@ -36,9 +34,9 @@ int main(int argc, char* argv[])
 
     TChain *fChain = nullptr;
     
-    if (argc < 5)
+    if (argc < 6)
     {
-	std::cerr <<"Please give 4 arguments "<<"SubsampleName"<< " MaxEvent"<< "Startfile"<<" No. of Files to run" <<std::endl;
+	std::cerr <<"Please give 6 arguments "<<"[SubsampleName]"<< " [MaxEvent]"<< "[Startfile]"<<" [No. of Files to run]  [b discriminator cut] [sampleSet cfg file]" <<std::endl;
         std::cerr <<" Valid configurations are " << std::endl;
         std::cerr <<" ./bTagEfficiencyCalc TTbarSingleLepT 1000 1 0" << std::endl;
         return -1;
@@ -51,6 +49,8 @@ int main(int argc, char* argv[])
     int  maxEvent =  std::atoi(maxevent);
     int numFiles =  std::atoi(argv[3]);
     int startFile =  std::atoi(argv[4]);
+    float csv_btag = std::atof(argv[5]);
+
 
     // Prepare file list and finalize it
     TString subSampleNameT = subSampleName;
@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
  
 
     //AnaSamples::SampleSet        ss("sampleSets.txt", (argc == 6), AnaSamples::luminosity_2016);
-    AnaSamples::SampleSet        ss("sampleSets_preProcess_2016.cfg");
+    AnaSamples::SampleSet        ss(argv[6], argc >= 8);
     //AnaSamples::SampleCollection sc("sampleCollections_2016.cfg", ss);
 
     float ScaleMC = 1.;                                                                              
@@ -104,8 +104,7 @@ int main(int argc, char* argv[])
         return 0;
     }
 
-    AnaFunctions::prepareForNtupleReader();
-    NTupleReader *tr = new NTupleReader(fChain);
+    NTupleReader *tr = new NTupleReader(fChain, {"run"});
 
     // --- Analyse events --------------------------------------------
     std::cout<<"First loop begin: "<<std::endl;
@@ -151,7 +150,7 @@ int main(int argc, char* argv[])
         {
             float pt = inputJets[ij].Pt();
             float eta = fabs(inputJets[ij].Eta());
-            if( ! AnaFunctions::jetPassCuts(inputJets[ij], AnaConsts::bTagArr) ) continue;
+            if( ! (pt > 20 && eta < 2.4) ) continue;
             float csv = recoJetsBtag.at(ij);
             int flav =  abs(recoJetsFlavor.at(ij));
 	      

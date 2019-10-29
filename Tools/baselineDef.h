@@ -108,6 +108,12 @@ public:
     bool PassObjectVeto(std::vector<TLorentzVector> objects, float eta_low, float eta_high, float phi_low, float phi_high, float pt_low);
     void PassHEMVeto();
     bool PrintoutConfig() const;
+    void CalcNZs();
+    void CalcNRtops(); 
+    void printTTZTopInfo();
+    void printDYTopInfo();
+    void CalcNWs();
+    void FilterSoftJet();
     bool CalcBottomVars();
     int  GetISRJetIdx(); 
     bool CalcISRJetVars();

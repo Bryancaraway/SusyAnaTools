@@ -472,14 +472,18 @@ void BaselineVessel::PassBaseline()
   int nElectrons_Stop0l = 0;
   int nMuons_Stop0l     = 0;
   int nIsoTracks_Stop0l = 0;
+  int nTaus_Stop0l      = 0;
   const auto& Electron_Stop0l   = tr->getVec<unsigned char>("Electron_Stop0l");
   const auto& Muon_Stop0l       = tr->getVec<unsigned char>("Muon_Stop0l");
   const auto& IsoTrack_Stop0l   = tr->getVec<unsigned char>("IsoTrack_Stop0l");
+  const auto& Tau_Stop0l        = tr->getVec<unsigned char>("Tau_Stop0l");
   bool Pass_ElecVeto   = tr->getVar<bool>("Pass_ElecVeto");
   bool Pass_MuonVeto   = tr->getVar<bool>("Pass_MuonVeto");
   bool Pass_IsoTrkVeto = tr->getVar<bool>("Pass_IsoTrkVeto");
+  bool Pass_TauVeto    = tr->getVar<bool>("Pass_TauVeto");
   for (const auto& pass : Electron_Stop0l)  if(pass) ++nElectrons_Stop0l;
   for (const auto& pass : Muon_Stop0l)      if(pass) ++nMuons_Stop0l;
+  for (const auto& pass : Tau_Stop0l)       if(pass) ++nTaus_Stop0l;
   for (const auto& pass : IsoTrack_Stop0l)  if(pass) ++nIsoTracks_Stop0l;
 
   // Set TLorentzVector for MET
@@ -527,7 +531,7 @@ void BaselineVessel::PassBaseline()
   bool SAT_Pass_MET_Tight   = (met >= 300);
   bool SAT_Pass_HT          = (HT  >= 300);
   bool SAT_Pass_NJets       = nJets >= 2;
-  bool SAT_Pass_LeptonVeto  = (Pass_ElecVeto && Pass_MuonVeto && Pass_IsoTrkVeto);
+  bool SAT_Pass_LeptonVeto  = (Pass_ElecVeto && Pass_MuonVeto && Pass_TauVeto && Pass_IsoTrkVeto);
   bool SAT_Pass_JetID       = tr->getVar<bool>("SAT_Pass_JetID"+firstSpec);
   bool SAT_Pass_EventFilter = tr->getVar<bool>("SAT_Pass_EventFilter"+firstSpec);
   bool Pass_JetID           = tr->getVar<bool>("Pass_JetID");
@@ -877,6 +881,7 @@ void BaselineVessel::PassBaseline()
   tr->registerDerivedVar("nElectrons_Stop0l" + firstSpec, nElectrons_Stop0l);
   tr->registerDerivedVar("nMuons_Stop0l" + firstSpec, nMuons_Stop0l);
   tr->registerDerivedVar("nIsoTracks_Stop0l" + firstSpec, nIsoTracks_Stop0l);
+  tr->registerDerivedVar("nTaus_Stop0l" + firstSpec, nTaus_Stop0l);
   tr->registerDerivedVar("HT" + firstSpec, HT);
   tr->registerDerivedVar("S_met" + firstSpec, S_met);
   tr->registerDerivedVar("SAT_Pass_MET" + firstSpec, SAT_Pass_MET);
@@ -1521,6 +1526,12 @@ void BaselineVessel::operator()(NTupleReader& tr_)
 {
   tr = &tr_;
   UseCleanedJets();
+  CalcNZs();
+  CalcNRtops();
+  printTTZTopInfo();
+  printDYTopInfo();
+  CalcNWs();
+  FilterSoftJet();
   CalcBottomVars();
   CalcISRJetVars();
   PassTrigger();
@@ -1878,6 +1889,142 @@ bool BaselineVessel::GetRecoZ(const std::string leptype, const std::string lepch
   }
   return true;
 }       // -----  end of function BaselineVessel::GetRecoZ  -----
+void BaselineVessel::CalcNZs()
+{
+  const auto& fatJet    = tr->getVec<TLorentzVector>(jetVecLabelAK8);
+  const auto& ZvsQCD    = tr->getVec<float>("FatJet_deepTag_ZvsQCD");
+  const auto& softDropM = tr->getVec<float>("FatJet_msoftdrop");
+  const auto& tau1      = tr->getVec<float>("FatJet_tau1");
+  const auto& tau2      = tr->getVec<float>("FatJet_tau2");
+  
+  int nZs_qcd = 0;
+  int nZs_tau = 0;
+  float bestRecoZqqM = 0;
+  float bestRecoZqqPt = 0;
+  const float maxZEta = 2.4;
+  const float minZPt  = 200;
+  const float minZM   = 75.0;
+  const float maxZM   = 115.0;
+  const float maxT21  = .60; // .52 , .40
+  const std::map<std::string, float> ZvsQCDWP = {
+    {"2016" , 0.950}, // .973 , .953
+    {"2017" , 0.950}, // .991 , .971
+    {"2018" , 0.950}  // .991 , .971
+  };
+   
+  for(unsigned int i = 0; i<fatJet.size(); i++)
+    {
+      if(fatJet[i].Pt() > 200 && abs(fatJet[i].Eta()) <= 2.4 && softDropM[i] > minZM && softDropM[i] < maxZM){
+	if(ZvsQCD[i] > ZvsQCDWP.at(year)){
+	  nZs_qcd += 1;
+	  bestRecoZqqM  = softDropM[i];
+	  bestRecoZqqPt = fatJet[i].Pt();
+	}
+	if(tau2[i]/tau1[i] <= maxT21)     nZs_tau += 1;
+      }
+    }
+  tr->registerDerivedVar("nZs_qcd" + firstSpec, nZs_qcd);
+  tr->registerDerivedVar("nZs_tau" + firstSpec, nZs_tau);
+  tr->registerDerivedVar("bestRecoZqqM"  + firstSpec, bestRecoZqqM);
+  tr->registerDerivedVar("bestRecoZqqPt" + firstSpec, bestRecoZqqPt);
+}
+// Return n Resolved tops at two with two different working points
+void BaselineVessel::CalcNRtops()
+{
+  std::vector<float> RTDs = tr->getVec<float>("ResolvedTopsDisc");
+  
+  int nRt_ttz = 0;
+  const std::pair<float,float> resolvedCut = {.90 , .80};  
+  std::sort (RTDs.rbegin(), RTDs.rend());
+  for(unsigned int i = 0 ; i<RTDs.size(); i++){
+    if ( i == 0 && RTDs[i] > resolvedCut.first){
+      nRt_ttz += 1;
+    }
+    else if (i >= 1 && nRt_ttz > 0 && RTDs[i] > resolvedCut.second){
+      nRt_ttz += 1;
+    }
+  }
+  tr->registerDerivedVar("nRt_ttz" + firstSpec, nRt_ttz);
+}
+// print out lumi,enevt, and run info of ttZ events (or DY events) where the resolved top tagger failed (passed)
+void BaselineVessel::printTTZTopInfo()
+{
+  const auto& lumi   = tr->getVar<unsigned int>("luminosityBlock");
+  const auto& event  = tr->getVar<unsigned long long>("event");
+  const auto& run    = tr->getVar<unsigned int>("run");
+  const auto& nRt    = tr->getVar<int>(UseCleanedJetsVar("nResolvedTops"));
+  const std::vector<int>            genDecayPdgIdVec = tr->getVec<int>("GenPart_pdgId");
+  const std::vector<TLorentzVector> genPartLVec      = tr->getVec<TLorentzVector>("GenPartTLV");
+  const unsigned int ZId = 23; 
+
+  for(unsigned int i=0; i < genPartLVec.size(); i++){
+    if (genDecayPdgIdVec[i] == 23 && genPartLVec[i].Pt()>250){
+      if(nRt == 0) printf("TTZ Run:\t%f\tEvent:\t%f\tLumi:\t%f\n", run,event,lumi);
+    }
+  }
+}
+void BaselineVessel::printDYTopInfo()
+{
+  const auto& lumi   = tr->getVar<unsigned int>("luminosityBlock");
+  const auto& event  = tr->getVar<unsigned long long>("event");
+  const auto& run    = tr->getVar<unsigned int>("run");
+  const auto& nRt    = tr->getVar<int>(UseCleanedJetsVar("nResolvedTops"));
+  const std::vector<int>            genDecayPdgIdVec   = tr->getVec<int>("GenPart_pdgId");
+  const std::vector<TLorentzVector> genPartLVec        = tr->getVec<TLorentzVector>("GenPartTLV");
+  const unsigned int ZId =23;
+  
+  for(unsigned int i=0; i < genPartLVec.size(); i++){
+    if (genDecayPdgIdVec[i] == 23 && genPartLVec[i].Pt()>250){
+      if(nRt > 0) printf("DY Run:\t%f\tEvent:\t%f\tLumi:\t%f\n", run,event,lumi);
+    }
+  }
+}
+// Return tau21 descriminator ak8 W jets , WvsQCD descriminator jets
+void BaselineVessel::CalcNWs()
+{
+  const auto& fatJet    = tr->getVec<TLorentzVector>(jetVecLabelAK8);
+  const auto& WvsQCD    = tr->getVec<float>("FatJet_deepTag_WvsQCD");
+  const auto& softDropM = tr->getVec<float>("FatJet_msoftdrop");
+  const auto& tau1      = tr->getVec<float>("FatJet_tau1");
+  const auto& tau2      = tr->getVec<float>("FatJet_tau2");
+
+  int nWs_qcd = 0;
+  int nWs_tau = 0;
+  const float maxWEta = 2.4;
+  const float minWPt  = 200;
+  const float minWM   = 65.0;
+  const float maxWM   = 105.0;
+  const float maxT21  = .52; // .52 , .40
+  const std::map<std::string, float> WvsQCDWP = {
+    {"2016" , 0.973}, // .973 , .953
+    {"2017" , 0.991}, // .991 , .951
+    {"2018" , 0.991}  // .991 , .951
+  };
+   
+  for(unsigned int i = 0; i<fatJet.size(); i++)
+    {
+      if(fatJet[i].Pt() > 200 && abs(fatJet[i].Eta()) <= 2.4 && softDropM[i] > minWM && softDropM[i] < maxWM){
+	if(WvsQCD[i] > WvsQCDWP.at(year))          nWs_qcd += 1;
+	if(tau2[i]/tau1[i] <= maxT21)              nWs_tau += 1;
+      }
+    }
+  tr->registerDerivedVar("nWs_qcd" + firstSpec, nWs_qcd);
+  tr->registerDerivedVar("nWs_tau" + firstSpec, nWs_tau);
+} 
+
+// Filter out jets with pt < 30 GeV
+// calculate new value for nJets
+void BaselineVessel::FilterSoftJet()
+{
+  const auto& Jets_pt  = tr->getVec<float>(UseCleanedJetsVar("Jet_pt"));
+  const auto& Jets_eta = tr->getVec<float>(UseCleanedJetsVar("Jet_eta"));
+  int nJets30 = 0;
+
+  for(int i=0;i<Jets_pt.size();i++){
+    if ((Jets_pt[i] >= 30) && (fabs(Jets_eta[i])<=2.4)) nJets30 += 1;
+  }
+  tr->registerDerivedVar("nJets30" + firstSpec, nJets30);
+}
 
 // calculate bottom quark variables
 // n_bottoms, mtb, ptb
@@ -1908,7 +2055,7 @@ bool BaselineVessel::CalcBottomVars()
   }
   
   // sort jets by pt (since JECs change jet pt)
-  std::sort(sorted_jets.begin(), sorted_jets.end(), SusyUtility::greaterThan<TLorentzVector, unsigned>);
+  std::sort(sorted_jets.begin(), sorted_jets.end(), SusyUtility::greaterThan<TLorentzVector, unsigned int>);
   
   for (const auto& p : sorted_jets)
   {
@@ -1938,25 +2085,33 @@ bool BaselineVessel::CalcBottomVars()
   }
   
   i = 0;
+  std::vector<TLorentzVector> *b_jets = new std::vector<TLorentzVector>();;
+  float_t                      b_dR;
   for (const auto& d : disc_vec)
   {
     if (verbose) printf("d = %f, index = %d\n", d.first, d.second);
     // only use first two b-jets (ordered by discriminator) for mtb
     if (i > 1) break;
     const TLorentzVector& b_jet = jets.at(d.second); 
+    b_jets->push_back(jets.at(d.second));
     float dPhi = fabs(TVector2::Phi_mpi_pi(b_jet.Phi() - metphi));
     float temp = sqrt( 2 * b_jet.Pt() * met * (1 - cos(dPhi)) );
     mtb = std::min(mtb, temp);
     ++i;
   }
-
-  // set mtb to 0 if mtb was not changed
+  // calculate the dR for leading b_jets
+  if (b_jets->size() == 2) b_dR = ROOT::Math::VectorUtil::DeltaR(b_jets->at(0), b_jets->at(1)); 
+  else                     b_dR = 9999;
+  
+  // set mtb to 0 if mtb was not changedf
   if (mtb == INFINITY) mtb = 0;
  
   // register variables
   tr->registerDerivedVar("mtb"+firstSpec, mtb);
   tr->registerDerivedVar("ptb"+firstSpec, ptb);
   tr->registerDerivedVar("nBottoms"+firstSpec, nBottoms);
+  tr->registerDerivedVar("b_dR"+firstSpec, b_dR);
+  tr->registerDerivedVec("b_jets"+firstSpec, b_jets);
 }
 
 

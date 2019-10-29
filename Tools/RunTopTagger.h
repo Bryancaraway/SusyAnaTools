@@ -84,6 +84,7 @@ private:
         auto* MergedTopsTLV     = new std::vector<TLorentzVector>();
         auto* SemiMergedTopsTLV = new std::vector<TLorentzVector>();
         auto* ResolvedTopsTLV   = new std::vector<TLorentzVector>();
+	auto* ResolvedTopsDisc = new std::vector<float>();
         auto* WTLV              = new std::vector<TLorentzVector>();
         auto* TopJetsMap        = new std::map< int , std::vector<TLorentzVector> >();
         int nAllTops        = -1;
@@ -91,6 +92,7 @@ private:
         int nSemiMergedTops = -1;
         int nResolvedTops   = -1;
         int nWs             = -1;
+
 
         //Select AK4 jets to use in tagger
         //When reading from the resolvedTopCandidate collection from nanoAOD you must pass ALL ak4 jets to ttUtility::ConstAK4Inputs below, 
@@ -193,6 +195,7 @@ private:
 
         if (printTops) std::cout << "----------------------------------------------------------------------" << std::endl;
         unsigned int topidx = 0;
+	//printf("\nResolved top properties:");
         for(const TopObject* top : tops)
         {
             TopObject::Type type = top->getType();
@@ -209,7 +212,10 @@ private:
                 AllTopsTLV->push_back(top->p());
                 if (type == TopObject::Type::MERGED_TOP)        MergedTopsTLV->push_back(top->p());
                 if (type == TopObject::Type::SEMIMERGEDWB_TOP)  SemiMergedTopsTLV->push_back(top->p());
-                if (type == TopObject::Type::RESOLVED_TOP)      ResolvedTopsTLV->push_back(top->p());
+                if (type == TopObject::Type::RESOLVED_TOP){     ResolvedTopsTLV->push_back(top->p());
+		  ResolvedTopsDisc->push_back(top->getDiscriminator());
+		  //printf("\t%f",static_cast<float>(top->getDiscriminator()));
+		}
 
                 //print basic top properties (top->p() gives a TLorentzVector)
                 //N constituents refers to the number of jets included in the top
@@ -258,6 +264,7 @@ private:
         tr.registerDerivedVec("MergedTopsTLV" + suffix_,        MergedTopsTLV);
         tr.registerDerivedVec("SemiMergedTopsTLV" + suffix_,    SemiMergedTopsTLV);
         tr.registerDerivedVec("ResolvedTopsTLV" + suffix_,      ResolvedTopsTLV);
+	tr.registerDerivedVec("ResolvedTopsDisc" + suffix_,     ResolvedTopsDisc);
         tr.registerDerivedVec("WTLV" + suffix_,                 WTLV);
         tr.registerDerivedVec("TopJetsMap" + suffix_,           TopJetsMap);
         tr.registerDerivedVar("nAllTops" + suffix_,             nAllTops);

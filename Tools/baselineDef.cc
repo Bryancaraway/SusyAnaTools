@@ -1526,10 +1526,11 @@ void BaselineVessel::operator()(NTupleReader& tr_)
 {
   tr = &tr_;
   UseCleanedJets();
+  calcTLVE();
   CalcNZs();
   CalcNRtops();
-  printTTZTopInfo();
-  printDYTopInfo();
+  //  printTTZTopInfo();
+  //  printDYTopInfo();
   CalcNWs();
   FilterSoftJet();
   CalcBottomVars();
@@ -1889,6 +1890,24 @@ bool BaselineVessel::GetRecoZ(const std::string leptype, const std::string lepch
   }
   return true;
 }       // -----  end of function BaselineVessel::GetRecoZ  -----
+void BaselineVessel::calcTLVE()
+{
+  const auto& jets     = tr->getVec<TLorentzVector>(jetVecLabel);
+  const auto& fatJets  = tr->getVec<TLorentzVector>(jetVecLabelAK8);
+  const auto& genParts = tr->getVec<TLorentzVector>("GenPartTLV");
+  
+  std::vector<float> *jets_E     = new std::vector<float>();
+  std::vector<float> *fatJets_E  = new std::vector<float>();
+  std::vector<float> *genParts_E = new std::vector<float>();
+  
+  for(auto& jet     : jets)     { jets_E->push_back(jet.E()); }
+  for(auto& fatJet  : fatJets)  { fatJets_E->push_back(fatJet.E()); }
+  for(auto& genPart : genParts) { genParts_E->push_back(genPart.E()); }
+  
+  tr->registerDerivedVec("Jet_E"+firstSpec,     jets_E);
+  tr->registerDerivedVec("FatJet_E"+firstSpec,  fatJets_E);
+  tr->registerDerivedVec("GenPart_E"+firstSpec, genParts_E);
+}
 void BaselineVessel::CalcNZs()
 {
   const auto& fatJet    = tr->getVec<TLorentzVector>(jetVecLabelAK8);
@@ -1931,8 +1950,8 @@ void BaselineVessel::CalcNZs()
 // Return n Resolved tops at two with two different working points
 void BaselineVessel::CalcNRtops()
 {
-  std::vector<float> RTDs = tr->getVec<float>("ResolvedTopsDisc");
-  
+  std::vector<float> RTDs  = tr->getVec<float>(UseCleanedJetsVar("ResolvedTopsDisc"));
+
   int nRt_ttz = 0;
   const std::pair<float,float> resolvedCut = {.90 , .80};  
   std::sort (RTDs.rbegin(), RTDs.rend());
@@ -1969,6 +1988,7 @@ void BaselineVessel::printDYTopInfo()
   const auto& event  = tr->getVar<unsigned long long>("event");
   const auto& run    = tr->getVar<unsigned int>("run");
   const auto& nRt    = tr->getVar<int>(UseCleanedJetsVar("nResolvedTops"));
+
   const std::vector<int>            genDecayPdgIdVec   = tr->getVec<int>("GenPart_pdgId");
   const std::vector<TLorentzVector> genPartLVec        = tr->getVec<TLorentzVector>("GenPartTLV");
   const unsigned int ZId =23;

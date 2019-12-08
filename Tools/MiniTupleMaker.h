@@ -30,6 +30,8 @@ public:
     void initBranches(const NTupleReader&);
 
     void fill();
+    
+    TTree *GetTree() { return tree_; }
 
 private:
     TFile* const file_;

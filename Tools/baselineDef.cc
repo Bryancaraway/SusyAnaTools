@@ -16,6 +16,10 @@ BaselineVessel::BaselineVessel(NTupleReader &tr_, const std::string year, const 
   incZEROtop            = false;
   UseDRLeptonCleanJet   = false;
   UseDRPhotonCleanJet   = false;
+  UseJESUpJet           = false; 
+  UseJESDownJet         = false;
+  UseJERUpJet           = false; 
+  UseJERDownJet         = false;
   UseDeepTagger         = true;
   UseDeepCSV            = true;
   jetVecLabel           = "JetTLV";
@@ -110,8 +114,15 @@ bool BaselineVessel::UseCleanedJets()
 {
   std::string prefix = "";
   std::string suffix = "";
+  std::string JES = "";
+  std::string JER = "";
   if      (UseDRPhotonCleanJet) suffix = "_drPhotonCleaned";
   else if (UseDRLeptonCleanJet) suffix = "_drLeptonCleaned";
+  //if      (UseJESUpJet)         JES    = "_JESUp";
+  //else if (UseJESDownJet)       JES    = "_JESDown";
+  //if      (UseJERUpJet)         JER    = "_JERUp";
+  //else if (UseJERDownJet)       JER    = "_JERDown";
+  //jetVecLabel     = prefix + "JetTLV"        + JES + JER + suffix;
   jetVecLabel     = prefix + "JetTLV"        + suffix;
   jetVecLabelAK8  = prefix + "FatJetTLV"     + suffix;
   CSVVecLabel     = prefix + "Jet_btagCSVV2" + suffix;
@@ -333,25 +344,53 @@ bool BaselineVessel::PredefineSpec()
     UseDRLeptonCleanJet = false;
     doLeptonVeto        = true;
   }
+  // Specify JES Up/Down systematics for MET and jets
+  //if (spec.find("jesTotalUp") != std::string::npos)
+  //  {
+  //    METLabel        = METLabel    + "_jesTotalUp";
+  //    METPhiLabel     = METPhiLabel + "_jesTotalUp";
+  //    
+  //    UseJESUpJet     = true;
+  //  }
+  //else if (spec.find("jesTotalDown") != std::string::npos)
+  //  {
+  //    METLabel        = METLabel    + "_jesTotalDown";
+  //    METPhiLabel     = METPhiLabel + "_jesTotalDown";
+  //    UseJESDownJet   = true;
+  //  }
+  //// Specify JER Up/Down systematics for MET and jets
+  //if (spec.find("jerUp") != std::string::npos)
+  //  {
+  //    METLabel        = METLabel    + "_jerUp";
+  //    METPhiLabel     = METPhiLabel + "_jerUp";
+  //    UseJERUpJet     = true;
+  //  }
+  //else if (spec.find("jerDown") != std::string::npos)
+  //  {
+  //    METLabel        = METLabel    + "_jerDown";
+  //    METPhiLabel     = METPhiLabel + "_jerDown";
+  //    UseJERDownJet   = true;
+  //  }
   // Specify Jet pt cut
-  if (spec.find("jetpt20") != std::string::npos)
-  {
-    min_jet_pt          = 20.0;
-    JetCutArrary        = AnaConsts::pt20Eta24Arr;
-    dPhiCutArrary       = AnaConsts::pt20Eta47Arr;
-  }
-  else if (spec.find("jetpt30") != std::string::npos)
-  {
-    min_jet_pt          = 30.0;
-    JetCutArrary        = AnaConsts::pt30Eta24Arr;
-    dPhiCutArrary       = AnaConsts::pt30Eta47Arr;
-  }
-  else if (spec.find("jetpt40") != std::string::npos)
-  {
-    min_jet_pt          = 40.0;
-    JetCutArrary        = AnaConsts::pt40Eta24Arr;
-    dPhiCutArrary       = AnaConsts::pt40Eta47Arr;
-  }
+  //
+  //if (spec.find("jetpt20") != std::string::npos)
+  //{
+  //  min_jet_pt          = 20.0;
+  //  JetCutArrary        = AnaConsts::pt20Eta24Arr;
+  //  dPhiCutArrary       = AnaConsts::pt20Eta47Arr;
+  //}
+  //else if (spec.find("jetpt30") != std::string::npos)
+  //{
+  //  min_jet_pt          = 30.0;
+  //  JetCutArrary        = AnaConsts::pt30Eta24Arr;
+  //  dPhiCutArrary       = AnaConsts::pt30Eta47Arr;
+  //}
+  //else if (spec.find("jetpt40") != std::string::npos)
+  //{
+  //  min_jet_pt          = 40.0;
+  //  JetCutArrary        = AnaConsts::pt40Eta24Arr;
+  //  dPhiCutArrary       = AnaConsts::pt40Eta47Arr;
+  //}
   // SUS-16-050 specialization for reference 
   if(spec.compare("Zinv") == 0 || spec.compare("ZinvJEUUp") == 0 || spec.compare("ZinvJEUDn") == 0 || spec.compare("ZinvMEUUp") == 0 || spec.compare("ZinvMEUDn") == 0) 
   {
@@ -1526,20 +1565,24 @@ void BaselineVessel::operator()(NTupleReader& tr_)
 {
   tr = &tr_;
   UseCleanedJets();
-  calcTLVE();
+  //calcTLVE();
   CalcNZs();
-  CalcNRtops();
+  //CalcNRtops();
   //  printTTZTopInfo();
   //  printDYTopInfo();
+  PassFatJetPt();
+  createLepCleanedIdx();
+  HandleJECunc();
   CalcNWs();
   FilterSoftJet();
   CalcBottomVars();
-  CalcISRJetVars();
+  //CalcISRJetVars();
   PassTrigger();
+  PassHLTvars();
   PassJetID();
   PassEventFilter();
   PassHEMVeto();
-  PassBaseline();
+  //PassBaseline();
 }
 
 void BaselineVessel::PassTrigger()
@@ -1596,6 +1639,37 @@ void BaselineVessel::PassTrigger()
     tr->registerDerivedVar("passElectronTrigger",   passElectronTrigger);
     tr->registerDerivedVar("passMuonTrigger",       passMuonTrigger);
     tr->registerDerivedVar("passPhotonTrigger",     passPhotonTrigger);
+}
+
+// Pass on hlt variable regardless if it exists
+void BaselineVessel::PassHLTvars() 
+{
+  
+  if      (year.compare("2016") == 0)
+    {
+      std::set<std::string> hltvars_2016 = {
+	"HLT_IsoMu24" , "HLT_IsoMu27", "HLT_Mu50", "HLT_Ele27_WPTight_Gsf", "HLT_Photon175", "HLT_Ele50_CaloIdVT_GsfTrkIdT_PFJet165", "HLT_Ele115_CaloIdVT_GsfTrkIdT",
+	"HLT_IsoTkMu24", "HLT_TkMu50", "HLT_Ele45_CaloIdVT_GsfTrkIdT_PFJet200_PFJet50"
+      };
+      for (auto& var : hltvars_2016){ tr->registerDerivedVar(var,getBool(var));}
+    }
+  else if (year.compare("2017") == 0)
+    {
+      std::set<std::string> hltvars_2017 = {
+	"HLT_IsoMu24" , "HLT_IsoMu27", "HLT_Mu50", "HLT_Ele27_WPTight_Gsf", "HLT_Photon175", "HLT_Ele50_CaloIdVT_GsfTrkIdT_PFJet165", "HLT_Ele115_CaloIdVT_GsfTrkIdT",
+	"HLT_Ele35_WPTight_Gsf", "HLT_Ele32_WPTight_Gsf_L1DoubleEG", "HLT_Photon200", "HLT_Ele28_eta2p1_WPTight_Gsf_HT150", "HLT_Ele32_WPTight_Gsf", "HLT_OldMu100", "HLT_TkMu100"
+      };
+      for (auto& var : hltvars_2017){ tr->registerDerivedVar(var,getBool(var));}
+    }
+  else if (year.compare("2018") == 0)
+    {
+      std::set<std::string> hltvars_2018 = {
+	"HLT_IsoMu24" , "HLT_IsoMu27", "HLT_Mu50", "HLT_Ele27_WPTight_Gsf", "HLT_Photon175", "HLT_Ele50_CaloIdVT_GsfTrkIdT_PFJet165", "HLT_Ele115_CaloIdVT_GsfTrkIdT",
+	"HLT_Ele35_WPTight_Gsf", "HLT_Ele32_WPTight_Gsf_L1DoubleEG", "HLT_Photon200", "HLT_Ele28_eta2p1_WPTight_Gsf_HT150", "HLT_Ele32_WPTight_Gsf", "HLT_OldMu100", "HLT_TkMu100"
+      };
+      for (auto& var : hltvars_2018){ tr->registerDerivedVar(var,getBool(var));}
+    }
+	    
 }
 
 void BaselineVessel::PassEventFilter()
@@ -1660,30 +1734,89 @@ bool BaselineVessel::PassObjectVeto(std::vector<TLorentzVector> objects, float e
 
 void BaselineVessel::PassHEMVeto()
 {
-    // PassHEMVeto eta, phi, and pt cuts
-    // https://github.com/susy2015/NanoSUSY-tools/blob/master/python/modules/Stop0lBaselineProducer.py#L236-L239
-    const auto& Jets        = tr->getVec<TLorentzVector>(jetVecLabel);
+  bool verbose = false;
+  // check if we are running on data
+  std::vector< std::pair<std::string,std::string> > jec = {{"",""},
+							   {"_JESUp","_jesTotalUp"},
+							   {"_JESDown","_jesTotalDown"},
+							   {"_JERUp","_jerUp"},
+							   {"_JERDown","_jerDown"}};
+  for (auto& j : jec){
+    bool isData             = !tr->checkBranch("genWeight");
+    if (isData && j.first!="") continue;
+    const auto& run         = tr->getVar<unsigned int>("run");
+    const auto& Jets        = tr->getVec<TLorentzVector>(UseCleanedJetsVar("JetTLV"+j.second));
     const auto& Electrons   = tr->getVec<TLorentzVector>("cutElecVec");
-    const auto& Photons     = tr->getVec<TLorentzVector>("cutPhotonTLV");
+    //const auto& Photons     = tr->getVec<TLorentzVector>("cutPhotonTLV");
     // use exact (narrow) window for electrons and photons: eta_low, eta_high, phi_low, phi_high = -3.0, -1.4, -1.57, -0.87
     // use extended (wide) window for jets:                 eta_low, eta_high, phi_low, phi_high = -3.2, -1.2, -1.77, -0.67
-    float narrow_eta_low  = -3.0;
-    float narrow_eta_high = -1.4;
-    float narrow_phi_low  = -1.57;
-    float narrow_phi_high = -0.87;
-    float wide_eta_low    = -3.2;
-    float wide_eta_high   = -1.2;
-    float wide_phi_low    = -1.77;
-    float wide_phi_high   = -0.67;
-    float min_electron_pt =  20.0;
+    float narrow_eta_low  =  -3.0;
+    float narrow_eta_high =  -1.4;
+    float narrow_phi_low  =  -1.57;
+    float narrow_phi_high =  -0.87;
+    float wide_eta_low    =  -3.2;
+    float wide_eta_high   =  -1.2;
+    float wide_phi_low    =  -1.77;
+    float wide_phi_high   =  -0.67;
+    float min_electron_pt =  20.0; // i think i should change to 30
     float min_photon_pt   = 220.0;
-    float jet_pt_cut      = 30.0;
+    float jet_pt_cut      =  30.0;
     // bool PassObjectVeto(std::vector<TLorentzVector> objects, float eta_low, float eta_high, float phi_low, float phi_high, float pt_low) 
     bool SAT_Pass_HEMVeto = true;
-    SAT_Pass_HEMVeto = SAT_Pass_HEMVeto && PassObjectVeto(Electrons, narrow_eta_low, narrow_eta_high, narrow_eta_low, narrow_eta_high, min_electron_pt);
-    SAT_Pass_HEMVeto = SAT_Pass_HEMVeto && PassObjectVeto(Photons,   narrow_eta_low, narrow_eta_high, narrow_eta_low, narrow_eta_high, min_photon_pt);
-    SAT_Pass_HEMVeto = SAT_Pass_HEMVeto && PassObjectVeto(Jets,      wide_eta_low,   wide_eta_high,   wide_eta_low,   wide_eta_high,   jet_pt_cut);
-    tr->registerDerivedVar("SAT_Pass_HEMVeto"+firstSpec,   SAT_Pass_HEMVeto);
+    SAT_Pass_HEMVeto = SAT_Pass_HEMVeto && PassObjectVeto(Electrons, narrow_eta_low, narrow_eta_high, narrow_phi_low, narrow_phi_high, min_electron_pt);
+    //SAT_Pass_HEMVeto = SAT_Pass_HEMVeto && PassObjectVeto(Photons,   narrow_eta_low, narrow_eta_high, narrow_phi_low, narrow_phi_high, min_photon_pt);
+    SAT_Pass_HEMVeto = SAT_Pass_HEMVeto && PassObjectVeto(Jets,      wide_eta_low,   wide_eta_high,   wide_phi_low,   wide_phi_high,   jet_pt_cut);
+    
+    
+    // HEM vetos
+    // - Cut for Data only, used for running over all 2018 at once
+    // - Cut for Data and MC, used for running over 2018 pre/post HEM eras
+    bool SAT_Pass_HEMVeto_DataOnly  = SAT_Pass_HEMVeto; 
+    bool SAT_Pass_HEMVeto_DataAndMC = SAT_Pass_HEMVeto; 
+    
+    // only apply HEM veto in 2018
+    if (year.compare("2018") != 0)
+      {
+	SAT_Pass_HEMVeto           = true;
+	SAT_Pass_HEMVeto_DataOnly  = true; 
+	SAT_Pass_HEMVeto_DataAndMC = true;
+      }
+    else
+      {
+	// for data, only apply HEM veto to 2018 starting with run 319077
+	if (isData)
+	  {
+	    if (run < 319077)
+	      {
+		SAT_Pass_HEMVeto_DataOnly = true;
+	      }
+	  }
+	// only apply HEM veto cut to data when using HEM veto weight for MC
+	else
+	  {
+	    SAT_Pass_HEMVeto_DataOnly = true;
+	  }
+      }
+    
+    // get HEM veto weight
+    // WARNING: luminosities are hard coded here
+    float lumi2018PreHEM    = 21068.576;
+    float lumi2018PostHEM   = 38630.913;
+    float lumi2018          = lumi2018PreHEM + lumi2018PostHEM;
+    float SAT_HEMVetoWeight = lumi2018PreHEM / lumi2018;
+    if (SAT_Pass_HEMVeto)
+      {
+	SAT_HEMVetoWeight = 1.0;
+      }
+    if (verbose && firstSpec.compare("_jetpt30") == 0)
+      {
+	printf("SAT_Pass_HEMVeto_DataOnly = %d, SAT_Pass_HEMVeto_DataAndMC = %d, SAT_HEMVetoWeight = %f\n", SAT_Pass_HEMVeto_DataOnly, SAT_Pass_HEMVeto_DataAndMC, SAT_HEMVetoWeight);
+      }
+    // register variables
+    tr->registerDerivedVar("SAT_Pass_HEMVeto_DataOnly"   + firstSpec, SAT_Pass_HEMVeto_DataOnly     );
+    tr->registerDerivedVar("SAT_Pass_HEMVeto_DataAndMC" + firstSpec, SAT_Pass_HEMVeto_DataAndMC    );
+    tr->registerDerivedVar("SAT_HEMVetoWeight" + j.first  + firstSpec, SAT_HEMVetoWeight             );  
+  }
 }
 
 // ===  FUNCTION  ============================================================
@@ -2031,7 +2164,96 @@ void BaselineVessel::CalcNWs()
   tr->registerDerivedVar("nWs_qcd" + firstSpec, nWs_qcd);
   tr->registerDerivedVar("nWs_tau" + firstSpec, nWs_tau);
 } 
+// Check if event has at least one FatJet with pt > 300 GeV
+void BaselineVessel::createLepCleanedIdx()
+{
+  const auto& jet_elecmatch  = tr->getVec<bool>("Jet_matchesElectron");
+  const auto& jet_muonmatch  = tr->getVec<bool>("Jet_matchesMuon");
+  const auto& jet_pt         = tr->getVec<float>("Jet_pt");
+  const auto& jet_eta         = tr->getVec<float>("Jet_eta");
 
+  std::vector<int> *LepC_idx  = new std::vector<int>();
+  int idxer = 0;
+  for(unsigned int i = 0 ; i<jet_elecmatch.size() ; i++){
+    if (!jet_elecmatch[i] && !jet_muonmatch[i] && jet_pt[i] >= 30 && abs(jet_eta[i]) <= 2.4){  // only index events that pass acceptance
+      LepC_idx->push_back(idxer);
+      idxer += 1;
+    }
+    else{
+      LepC_idx->push_back(-1);
+    }
+  }
+  tr->registerDerivedVec("Jet_lepcleaned_idx", LepC_idx);
+  // need to handle jec and jer variations
+  bool isMC = tr->checkBranch("genWeight");
+  if (isMC){
+    std::vector<std::string>  jec = {"_jesTotalUp","_jesTotalDown","_jerUp","_jerDown"};
+    for (std::string j : jec){
+      const auto& jet_pt_jec = tr->getVec<float>("Jet_pt"+j);
+      idxer = 0;
+      std::vector<int> *LepC_idx_jec  = new std::vector<int>();
+      for(unsigned int i = 0 ; i<jet_elecmatch.size() ; i++){
+  	if (!jet_elecmatch[i] && !jet_muonmatch[i] && jet_pt_jec[i] >= 30 && abs(jet_eta[i]) <= 2.4){  // only index events that pass acceptance
+  	  LepC_idx_jec->push_back(idxer);
+  	  idxer += 1;
+  	}
+  	else{
+  	  LepC_idx_jec->push_back(-1);
+	}
+      }
+      tr->registerDerivedVec("Jet_lepcleaned_idx"+j, LepC_idx_jec);
+    }
+  }
+}
+void BaselineVessel::PassFatJetPt()
+{
+  const auto& FatJets_pt = tr->getVec<float>(UseCleanedJetsVar("FatJet_pt"));
+  const auto& FatJets_eta = tr->getVec<float>(UseCleanedJetsVar("FatJet_eta"));
+  bool passFatJetPt = false;
+  //bool passBCFatJetPt = FatJets_pt.size() > 0;
+  bool passBCFatJetPt = false;
+  for(int i=0;i<FatJets_pt.size();i++){
+    if (FatJets_pt[i] > 175 && abs(FatJets_eta[i] <= 2.4)) passBCFatJetPt = true;
+    if (FatJets_pt[i] >= 200. && abs(FatJets_eta[i] <= 2.4)) passFatJetPt = true;
+  }
+  tr->registerDerivedVar("passBCFatJetPt" + firstSpec, passBCFatJetPt); // just keep events with a single fatjet
+  tr->registerDerivedVar("passFatJetPt" + firstSpec, passFatJetPt);
+}
+// handle all jes and jer uncertainties for bryans analysis
+// as well as compute jec baseline
+void BaselineVessel::HandleJECunc()
+{
+  bool isMC             = tr->checkBranch("genWeight");
+  const auto& Jets_eta       = tr->getVec<float>(UseCleanedJetsVar("Jet_eta"));
+  const auto& Jet_btagStop0l = tr->getVec<unsigned char>(UseCleanedJetsVar("Jet_btagStop0l"));
+
+  std::vector< std::pair<std::string,std::string> > jec = {{"",""},
+							   {"_JESUp","_jesTotalUp"},
+							   {"_JESDown","_jesTotalDown"},
+							   {"_JERUp","_jerUp"},
+							   {"_JERDown","_jerDown"}};
+  bool pass_BC_njet = false;
+  bool pass_BC_nbs  = false;
+  for (auto& j : jec){
+    if (!isMC && j.first!="") continue;
+    const auto& Jets_pt  = tr->getVec<float>(UseCleanedJetsVar("Jet_pt"+j.second));
+    int njets = 0;
+    int nbottoms = 0;
+    for(int i=0;i<Jets_pt.size();i++){
+      if ((Jets_pt[i] >= 30) && (fabs(Jets_eta[i])<=2.4)) njets += 1;
+      if ((Jets_pt[i] >= 30) && (fabs(Jets_eta[i])<=2.4) && (Jet_btagStop0l[i])) nbottoms +=1;
+    }   
+    pass_BC_njet = pass_BC_njet || njets >= 4;
+    pass_BC_nbs  = pass_BC_nbs  || nbottoms >= 2;
+    if (j.first != "") {
+      tr->registerDerivedVar("nJets30"+j.first+firstSpec, njets);
+      tr->registerDerivedVar("nBottoms"+j.first+firstSpec, nbottoms);
+    }
+  }
+  tr->registerDerivedVar("pass_BC_njet"+firstSpec,pass_BC_njet);
+  tr->registerDerivedVar("pass_BC_nbs"+firstSpec,pass_BC_nbs);
+  
+}
 // Filter out jets with pt < 30 GeV
 // calculate new value for nJets
 void BaselineVessel::FilterSoftJet()
@@ -2039,10 +2261,10 @@ void BaselineVessel::FilterSoftJet()
   const auto& Jets_pt  = tr->getVec<float>(UseCleanedJetsVar("Jet_pt"));
   const auto& Jets_eta = tr->getVec<float>(UseCleanedJetsVar("Jet_eta"));
   int nJets30 = 0;
-
   for(int i=0;i<Jets_pt.size();i++){
     if ((Jets_pt[i] >= 30) && (fabs(Jets_eta[i])<=2.4)) nJets30 += 1;
   }
+
   tr->registerDerivedVar("nJets30" + firstSpec, nJets30);
 }
 
@@ -2058,7 +2280,7 @@ bool BaselineVessel::CalcBottomVars()
   const auto& event          = tr->getVar<unsigned long long>("event");
 
   bool verbose = false;
-  float pt_cut = 20.0;
+  float pt_cut = 30.0;
   float eta_cut = 2.4;
   float mtb = INFINITY;
   float ptb = 0.0;

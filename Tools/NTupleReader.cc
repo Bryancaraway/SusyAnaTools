@@ -428,6 +428,7 @@ void NTupleReader::getType(const std::string& name, std::string& type) const
     {
         type = typeIter->second;
     }
+
 }
 
 void NTupleReader::setReThrow(const bool reThrow)

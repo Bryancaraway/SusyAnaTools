@@ -132,6 +132,7 @@ namespace AnaConsts{
    const IsoAccRec muonsArr        = {   -1,       2.4,      10,     -1,       0.2,     -1  };
    const IsoAccRec muonsMiniIsoArr = {   -1,       2.4,       5,     -1,       0.2,     -1  };
    const IsoAccRec muonsTrigArr    = {   -1,       2.4,       5,     -1,       0.4,     -1  };
+   const IsoAccRec muonsBryanArr   = {   -1,       2.4,       5,     -1,       -1,      -1  };
 //   const IsoAccRec isoTrksArr      = {   -1,        -1,      10,     -1,       0.1,    100  };
    const IsoAccRec isoLepTrksArr   = {   -1,       2.5,       5,     -1,       0.2,    100  };
    const IsoAccRec isoHadTrksArr   = {   -1,       2.5,      10,     -1,       0.1,    100  };
@@ -142,6 +143,7 @@ namespace AnaConsts{
    const IsoAccRec elesArr        = {   -1,       2.5,      10,     -1,     0.10,    -1  };
    const IsoAccRec elesMiniIsoArr = {   -1,       2.5,       5,     -1,     0.10,    -1  };
    const IsoAccRec oldelesArr     = {   -1,       2.5,       5,     -1,     0.15,    -1  };
+   const IsoAccRec elesBryanArr   = {   -1,       2.5,       5,     -1,      -1,     -1  };
 
 //                                       minAbsEta, maxAbsEta, minPt, maxPt,   mindR,   maxdR
    const ActRec muonsAct              = {   -1,       -1,        10,    -1,     -1,      1.0  };

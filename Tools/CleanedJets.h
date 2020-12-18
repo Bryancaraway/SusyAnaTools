@@ -39,11 +39,27 @@ private:
 
         //                  jetCollectionName, jetCollectionVariables, prefix, suffix, doLeptonCleaning, doPhotonCleaning, doJetCuts
         cleanJetCollection("Jet",      AK4JetVariables_, "", "_drLeptonCleaned", true,  false, false);
-        cleanJetCollection("Jet",      AK4JetVariables_, "", "_drPhotonCleaned", false, true,  false);
+        //cleanJetCollection("Jet",      AK4JetVariables_, "", "_drPhotonCleaned", false, true,  false);
         cleanJetCollection("FatJet",   AK8JetVariables_, "", "_drLeptonCleaned", true,  false, false);
-        cleanJetCollection("FatJet",   AK8JetVariables_, "", "_drPhotonCleaned", false, true,  false);
+        //cleanJetCollection("FatJet",   AK8JetVariables_, "", "_drPhotonCleaned", false, true,  false);
     
+	// MC only
+        if (tr_->checkBranch("GenJet_pt"))
+	  {
+            // apply JES to cleaned jet collections
+            registerJetsJES("_drLeptonCleaned", "_jesTotalUp");
+            registerJetsJES("_drLeptonCleaned", "_jesTotalDown");
+            //registerJetsJES("_drPhotonCleaned", "_jesTotalUp");
+            //registerJetsJES("_drPhotonCleaned", "_jesTotalDown");
+	    // apply JER to cleaned jet collections
+            registerJetsJER("_drLeptonCleaned", "_jerUp");
+            registerJetsJER("_drLeptonCleaned", "_jerDown");
+            //registerJetsJER("_drPhotonCleaned", "_jerUp");
+            //registerJetsJER("_drPhotonCleaned", "_jerDown");
+	  }
+
     }
+    
 
     void registerJetMatchesObject()
     {
@@ -51,10 +67,10 @@ private:
         const auto& Jet_TLV            = tr_->getVec<TLorentzVector>("JetTLV");
         const auto& FatJet_TLV         = tr_->getVec<TLorentzVector>("FatJetTLV");
         // use objects passing cuts for cleaning
-        const auto& Photon_TLV         = tr_->getVec<TLorentzVector>("cutPhotonTLV");
+        //const auto& Photon_TLV         = tr_->getVec<TLorentzVector>("cutPhotonTLV");
         const auto& Electron_TLV       = tr_->getVec<TLorentzVector>("cutElecVec");
         const auto& Muon_TLV           = tr_->getVec<TLorentzVector>("cutMuVec");
-        const auto& Photon_jetIdx      = tr_->getVec<int>("cutPhotonJetIndex");
+        //const auto& Photon_jetIdx      = tr_->getVec<int>("cutPhotonJetIndex");
         const auto& Electron_jetIdx    = tr_->getVec<int>("cutElecJetIndex");
         const auto& Muon_jetIdx        = tr_->getVec<int>("cutMuJetIndex");
         // jet matches object variables that we derive here
@@ -67,13 +83,44 @@ private:
         
         const float DRMAX_AK4 = 0.2;
         const float DRMAX_AK8 = 0.4;
-        Jet_matchesPhoton      = AnaFunctions::getJetMatchesObjectVec(Jet_TLV,    Photon_TLV,   Photon_jetIdx,      DRMAX_AK4);
+        //Jet_matchesPhoton      = AnaFunctions::getJetMatchesObjectVec(Jet_TLV,    Photon_TLV,   Photon_jetIdx,      DRMAX_AK4);
         Jet_matchesElectron    = AnaFunctions::getJetMatchesObjectVec(Jet_TLV,    Electron_TLV, Electron_jetIdx,    DRMAX_AK4);
         Jet_matchesMuon        = AnaFunctions::getJetMatchesObjectVec(Jet_TLV,    Muon_TLV,     Muon_jetIdx,        DRMAX_AK4);
-        FatJet_matchesPhoton   = AnaFunctions::getJetMatchesObjectVec(FatJet_TLV, Photon_TLV,   DRMAX_AK8);
+        //FatJet_matchesPhoton   = AnaFunctions::getJetMatchesObjectVec(FatJet_TLV, Photon_TLV,   DRMAX_AK8);
         FatJet_matchesElectron = AnaFunctions::getJetMatchesObjectVec(FatJet_TLV, Electron_TLV, DRMAX_AK8);
         FatJet_matchesMuon     = AnaFunctions::getJetMatchesObjectVec(FatJet_TLV, Muon_TLV,     DRMAX_AK8);
 
+    }
+    
+    // apply JES to cleaned jet collections
+    void registerJetsJES(const std::string& suffix, const std::string& jesTag)
+    {
+      auto& Jets = tr_->createDerivedVec<TLorentzVector>("JetTLV" +jesTag + suffix);
+      const auto& vec_pt   = tr_->getVec<float>("Jet_pt"   + jesTag + suffix);
+      const auto& vec_eta  = tr_->getVec<float>("Jet_eta"  + suffix);
+      const auto& vec_phi  = tr_->getVec<float>("Jet_phi"  + suffix);
+      const auto& vec_mass = tr_->getVec<float>("Jet_mass" + jesTag + suffix);
+      for (int i = 0; i < vec_pt.size(); ++i)
+        {
+	  TLorentzVector tlv;
+	  tlv.SetPtEtaPhiM(vec_pt[i], vec_eta[i], vec_phi[i], vec_mass[i]);
+	  Jets.push_back(tlv);
+        }
+    }
+    // apply JER to cleaned jet collections
+    void registerJetsJER(const std::string& suffix, const std::string& jerTag)
+    {
+      auto& Jets = tr_->createDerivedVec<TLorentzVector>("JetTLV"+ jerTag + suffix);
+      const auto& vec_pt   = tr_->getVec<float>("Jet_pt"   + jerTag + suffix);
+      const auto& vec_eta  = tr_->getVec<float>("Jet_eta"  + suffix);
+      const auto& vec_phi  = tr_->getVec<float>("Jet_phi"  + suffix);
+      const auto& vec_mass = tr_->getVec<float>("Jet_mass" + jerTag + suffix);
+      for (int i = 0; i < vec_pt.size(); ++i)
+        {
+	  TLorentzVector tlv;
+	  tlv.SetPtEtaPhiM(vec_pt[i], vec_eta[i], vec_phi[i], vec_mass[i]);
+	  Jets.push_back(tlv);
+        }
     }
 
     template <class type> void cleanVector(const std::string& vectorName, const std::vector<bool>& keepJet, const std::string& suffix)
@@ -206,6 +253,10 @@ public:
                              "Jet_btagDeepB",
                              "Jet_btagDeepC",
                              "Jet_btagDeepFlavB",
+			     "Jet_deepFlavourlepb",
+			     "Jet_deepFlavourb",
+			     "Jet_deepFlavourbb",
+			     "Jet_deepFlavouruds",
                              "Jet_chEmEF",
                              "Jet_chHEF",
                              "Jet_cleanmask",
@@ -216,6 +267,10 @@ public:
                              "Jet_hadronFlavour",
                              "Jet_jetId",
                              "Jet_mass",
+			     "Jet_mass_jesTotalUp",
+                             "Jet_mass_jesTotalDown",
+			     "Jet_mass_jerUp",
+                             "Jet_mass_jerDown",
                              "Jet_muEF",
                              "Jet_muonIdx1",
                              "Jet_muonIdx2",
@@ -227,9 +282,12 @@ public:
                              "Jet_partonFlavour",
                              "Jet_phi",
                              "Jet_pt",
+			     "Jet_pt_jesTotalUp",
+                             "Jet_pt_jesTotalDown",
+			     "Jet_pt_jerUp",
+                             "Jet_pt_jerDown",
                              "Jet_puId",
                              "Jet_qgl",
-                             "Jet_rawFactor",
                            };
         
         // AK8 jet variables
@@ -245,16 +303,16 @@ public:
                              "FatJet_btagDeepB",
                              "FatJet_btagHbb",
                              // not a vector... cannot clean
-                             //"FatJet_deepTagMD_H4qvsQCD",
-                             //"FatJet_deepTagMD_HbbvsQCD",
-                             //"FatJet_deepTagMD_TvsQCD",
-                             //"FatJet_deepTagMD_WvsQCD",
-                             //"FatJet_deepTagMD_ZHbbvsQCD",
-                             //"FatJet_deepTagMD_ZHccvsQCD",
-                             //"FatJet_deepTagMD_ZbbvsQCD",
-                             //"FatJet_deepTagMD_ZvsQCD",
-                             //"FatJet_deepTagMD_bbvsLight",
-                             //"FatJet_deepTagMD_ccvsLight",
+                             "FatJet_deepTagMD_H4qvsQCD",
+                             "FatJet_deepTagMD_HbbvsQCD",
+                             "FatJet_deepTagMD_TvsQCD",
+                             "FatJet_deepTagMD_WvsQCD",
+                             "FatJet_deepTagMD_ZHbbvsQCD",
+                             "FatJet_deepTagMD_ZHccvsQCD",
+                             "FatJet_deepTagMD_ZbbvsQCD",
+                             "FatJet_deepTagMD_ZvsQCD",
+                             "FatJet_deepTagMD_bbvsLight",
+                             "FatJet_deepTagMD_ccvsLight",
                              //"FatJet_deepTag_H",
                              //"FatJet_deepTag_QCD",
                              //"FatJet_deepTag_QCDothers",

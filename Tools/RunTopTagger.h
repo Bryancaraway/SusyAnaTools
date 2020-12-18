@@ -198,8 +198,8 @@ private:
 	//printf("\nResolved top properties:");
         for(const TopObject* top : tops)
         {
-            TopObject::Type type = top->getType();
-            //if (tops.size() > 1) std::cout << "  top type: " << type << std::endl;
+	    TopObject::Type type = top->getType();
+	    //if (tops.size() > 1) std::cout << "  top type: " << type << std::endl;
             //std::cout << "  top type: " << type << std::endl;
             
             if (type == TopObject::Type::MERGED_W)          WTLV->push_back(top->p());
@@ -234,7 +234,7 @@ private:
                 {
                     if (printTops) printf("\t\tConstituent properties: Constituent type: %3d,   Pt: %6.1lf,   Eta: %7.3lf,   Phi: %7.3lf\n", constituent->getType(), constituent->p().Pt(), constituent->p().Eta(), constituent->p().Phi());
                     temp.push_back(constituent->p());
-                }                
+                }        
                 TopJetsMap->insert(std::make_pair(topidx, temp));
                 ++topidx;
             }
@@ -263,8 +263,8 @@ private:
         tr.registerDerivedVec("AllTopsTLV" + suffix_,           AllTopsTLV);
         tr.registerDerivedVec("MergedTopsTLV" + suffix_,        MergedTopsTLV);
         tr.registerDerivedVec("SemiMergedTopsTLV" + suffix_,    SemiMergedTopsTLV);
-        tr.registerDerivedVec("ResolvedTopsTLV" + suffix_,      ResolvedTopsTLV);
-	tr.registerDerivedVec("ResolvedTopsDisc" + suffix_,     ResolvedTopsDisc);
+        //tr.registerDerivedVec("ResolvedTopsTLV" + suffix_,      ResolvedTopsTLV);
+	//tr.registerDerivedVec("ResolvedTopsDisc" + suffix_,     ResolvedTopsDisc);
         tr.registerDerivedVec("WTLV" + suffix_,                 WTLV);
         tr.registerDerivedVec("TopJetsMap" + suffix_,           TopJetsMap);
         tr.registerDerivedVar("nAllTops" + suffix_,             nAllTops);

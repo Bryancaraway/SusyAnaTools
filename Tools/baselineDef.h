@@ -63,6 +63,10 @@ public:
     bool incZEROtop;
     bool UseDRLeptonCleanJet;
     bool UseDRPhotonCleanJet;
+    bool UseJESUpJet;
+    bool UseJESDownJet;
+    bool UseJERUpJet;
+    bool UseJERDownJet;
     bool UseDeepTagger;
     bool UseDeepCSV;
 
@@ -103,6 +107,8 @@ public:
     bool getBool(const std::string& var);
     void PassBaseline();
     void PassTrigger();
+    void PassHLTvars();
+    void HandleJECunc();
     void PassJetID();
     void PassEventFilter();
     bool PassObjectVeto(std::vector<TLorentzVector> objects, float eta_low, float eta_high, float phi_low, float phi_high, float pt_low);
@@ -114,6 +120,8 @@ public:
     void printTTZTopInfo();
     void printDYTopInfo();
     void CalcNWs();
+    void PassFatJetPt();
+    void createLepCleanedIdx();
     void FilterSoftJet();
     bool CalcBottomVars();
     int  GetISRJetIdx(); 
